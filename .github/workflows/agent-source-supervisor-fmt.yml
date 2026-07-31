@@ -1,0 +1,25 @@
+name: agent-source-supervisor-fmt
+
+on:
+  push:
+    branches:
+      - agent-source-supervisor-fmt
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Package source
+        run: tar --exclude=.git --exclude=target -czf "$RUNNER_TEMP/pi-agent-supervisor-fmt.tar.gz" .
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-agent-supervisor-fmt
+          path: ${{ runner.temp }}/pi-agent-supervisor-fmt.tar.gz
+          if-no-files-found: error
+          retention-days: 1

@@ -22,7 +22,10 @@ fn run_async<T>(future: impl Future<Output = T>) -> T {
     runtime.block_on(future)
 }
 
-fn policy(workspace: &Path, permission_mode: PermissionMode) -> (Arc<ToolPolicyEngine>, Arc<AuditLog>) {
+fn policy(
+    workspace: &Path,
+    permission_mode: PermissionMode,
+) -> (Arc<ToolPolicyEngine>, Arc<AuditLog>) {
     let mut state = DevinSessionState::new("process-test", workspace);
     state.agent_mode = AgentMode::Normal;
     state.permission_mode = permission_mode;
@@ -78,7 +81,10 @@ fn wait_for_stdout(
         if snapshot.stdout.contains(needle) {
             return snapshot;
         }
-        assert!(Instant::now() < deadline, "stdout never contained {needle:?}");
+        assert!(
+            Instant::now() < deadline,
+            "stdout never contained {needle:?}"
+        );
         thread::sleep(Duration::from_millis(10));
     }
 }
@@ -189,12 +195,18 @@ fn kill_shell_terminates_descendants_in_the_process_group() {
     let workspace = tempfile::tempdir().expect("workspace");
     let supervisor = supervisor(workspace.path());
     let process_id = supervisor
-        .spawn("sleep 10 & child=$!; printf '%s' \"$child\"; wait", None, None)
+        .spawn(
+            "sleep 10 & child=$!; printf '%s' \"$child\"; wait",
+            None,
+            None,
+        )
         .expect("spawn");
     let running = wait_for_stdout(&supervisor, &process_id, "1", Duration::from_secs(2));
     let child_pid = running.stdout.trim().parse::<u32>().expect("child pid");
 
-    supervisor.kill(&process_id, None).expect("kill process group");
+    supervisor
+        .kill(&process_id, None)
+        .expect("kill process group");
     let snapshot = wait_for_terminal(&supervisor, &process_id, Duration::from_secs(2));
     assert_eq!(snapshot.status, ProcessStatus::Cancelled);
     thread::sleep(Duration::from_millis(50));

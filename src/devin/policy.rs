@@ -173,10 +173,7 @@ impl ToolPolicyEngine {
 
     #[must_use]
     pub fn is_authorized(&self, call_id: &str) -> bool {
-        self.audit
-            .as_ref()
-            .and_then(|audit| audit.status(call_id))
-            == Some(AuditStatus::Allowed)
+        self.audit.as_ref().and_then(|audit| audit.status(call_id)) == Some(AuditStatus::Allowed)
     }
 
     #[must_use]
@@ -200,12 +197,7 @@ impl ToolPolicyEngine {
     /// Compatibility entry point for callers that only have an outcome and
     /// optional error text.
     pub fn record_outcome(&self, call_id: &str, status: AuditStatus, error: Option<&str>) {
-        self.complete(
-            call_id,
-            status,
-            Vec::new(),
-            error.map(str::to_string),
-        );
+        self.complete(call_id, status, Vec::new(), error.map(str::to_string));
     }
 
     /// Evaluate a process call when no frontend has already done so. Calls

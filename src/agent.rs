@@ -17,9 +17,7 @@ use crate::compaction::{self, ResolvedCompactionSettings};
 use crate::compaction_worker::{
     CompactionAdmissionSignals, CompactionQuota, CompactionWorkerState,
 };
-use crate::devin::{
-    AuditStatus, PolicyAction, ToolPolicyEngine, ToolRequest, ToolRequestOrigin,
-};
+use crate::devin::{AuditStatus, PolicyAction, ToolPolicyEngine, ToolRequest, ToolRequestOrigin};
 use crate::error::{Error, Result};
 use crate::extension_events::{
     BeforeAgentStartOutcome, InputEventOutcome, SessionBeforeCompactOutcome,
@@ -3018,8 +3016,7 @@ impl Agent {
                     Some(Self::tool_approval_denied_output(&decision.reason))
                 }
                 PolicyAction::Sandbox => {
-                    let reason =
-                        "sandbox execution adapter is not configured; refusing unsandboxed execution";
+                    let reason = "sandbox execution adapter is not configured; refusing unsandboxed execution";
                     policy.complete(
                         &tool_call.id,
                         AuditStatus::Denied,

@@ -182,18 +182,15 @@ struct ManagedProcess {
 }
 
 impl ManagedProcess {
-    fn snapshot(
-        &self,
-        stdout_offset: Option<u64>,
-        stderr_offset: Option<u64>,
-    ) -> ProcessSnapshot {
+    fn snapshot(&self, stdout_offset: Option<u64>, stderr_offset: Option<u64>) -> ProcessSnapshot {
         let state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let (stdout, stdout_offset, stdout_gap) = state.stdout.snapshot(stdout_offset);
         let (stderr, stderr_offset, stderr_gap) = state.stderr.snapshot(stderr_offset);
-        let truncated = state.stdout.truncated || state.stderr.truncated || stdout_gap || stderr_gap;
+        let truncated =
+            state.stdout.truncated || state.stderr.truncated || stdout_gap || stderr_gap;
         let artifact_refs = truncated
             .then(|| format!("file://{}", self.spill_path.display()))
             .into_iter()
@@ -355,7 +352,9 @@ impl ProcessSupervisor {
             .create_new(true)
             .write(true)
             .open(&spill_path)
-            .map_err(|error| Error::tool("exec", format!("failed to create output spill: {error}")))?;
+            .map_err(|error| {
+                Error::tool("exec", format!("failed to create output spill: {error}"))
+            })?;
         let spill = Arc::new(Mutex::new(spill));
         let process = Arc::new(ManagedProcess {
             id: id.clone(),
@@ -385,14 +384,12 @@ impl ProcessSupervisor {
 
         let stdout_process = Arc::clone(&process);
         let stdout_spill = Arc::clone(&spill);
-        let stdout_thread = thread::spawn(move || {
-            pump_output(stdout, false, &stdout_process, &stdout_spill)
-        });
+        let stdout_thread =
+            thread::spawn(move || pump_output(stdout, false, &stdout_process, &stdout_spill));
         let stderr_process = Arc::clone(&process);
         let stderr_spill = Arc::clone(&spill);
-        let stderr_thread = thread::spawn(move || {
-            pump_output(stderr, true, &stderr_process, &stderr_spill)
-        });
+        let stderr_thread =
+            thread::spawn(move || pump_output(stderr, true, &stderr_process, &stderr_spill));
         let config = self.config;
         thread::spawn(move || {
             monitor_process(process, child, stdout_thread, stderr_thread, config)
@@ -502,9 +499,7 @@ impl ProcessSupervisor {
             }
         }
         let deadline = Instant::now() + self.config.kill_grace;
-        while Instant::now() < deadline
-            && processes.iter().any(|process| !process.is_terminal())
-        {
+        while Instant::now() < deadline && processes.iter().any(|process| !process.is_terminal()) {
             thread::sleep(self.config.poll_interval);
         }
         for process in processes {
@@ -530,12 +525,7 @@ impl ProcessSupervisor {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(process_id)
             .cloned()
-            .ok_or_else(|| {
-                Error::tool(
-                    "get_output",
-                    format!("unknown process id `{process_id}`"),
-                )
-            })
+            .ok_or_else(|| Error::tool("get_output", format!("unknown process id `{process_id}`")))
     }
 
     async fn wait_for_terminal(
@@ -581,7 +571,8 @@ impl ProcessSupervisor {
     ) -> Result<ProcessSnapshot> {
         let process = self.process(process_id)?;
         let initial = process.snapshot(stdout_offset, stderr_offset);
-        if initial.status.is_terminal() || !initial.stdout.is_empty() || !initial.stderr.is_empty() {
+        if initial.status.is_terminal() || !initial.stdout.is_empty() || !initial.stderr.is_empty()
+        {
             return Ok(initial);
         }
         let wait = wait.min(MAX_WAIT_FOR_OUTPUT);
@@ -597,7 +588,10 @@ impl ProcessSupervisor {
                 .map_or_else(wall_now, |timer| timer.now());
             sleep(now, self.config.poll_interval).await;
             let snapshot = process.snapshot(stdout_offset, stderr_offset);
-            if snapshot.status.is_terminal() || !snapshot.stdout.is_empty() || !snapshot.stderr.is_empty() {
+            if snapshot.status.is_terminal()
+                || !snapshot.stdout.is_empty()
+                || !snapshot.stderr.is_empty()
+            {
                 return Ok(snapshot);
             }
         }
@@ -626,7 +620,11 @@ fn pump_output(
                     let mut file = spill
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    let label = if is_stderr { b"[stderr] " } else { b"[stdout] " };
+                    let label = if is_stderr {
+                        b"[stderr] "
+                    } else {
+                        b"[stdout] "
+                    };
                     let _ignored = file.write_all(label).and_then(|()| file.write_all(bytes));
                 }
                 let mut state = process
@@ -683,7 +681,9 @@ fn monitor_process(
             }
         }
 
-        let timed_out = process.timeout.is_some_and(|timeout| started.elapsed() >= timeout);
+        let timed_out = process
+            .timeout
+            .is_some_and(|timeout| started.elapsed() >= timeout);
         if timed_out || process.stop_requested.load(Ordering::SeqCst) {
             forced_status = Some(if timed_out {
                 ProcessStatus::TimedOut
@@ -753,14 +753,18 @@ fn exit_status_code(status: ExitStatus) -> i32 {
 
 fn snapshot_update(snapshot: &ProcessSnapshot) -> ToolUpdate {
     ToolUpdate {
-        content: vec![ContentBlock::Text(TextContent::new(snapshot.combined_output()))],
+        content: vec![ContentBlock::Text(TextContent::new(
+            snapshot.combined_output(),
+        ))],
         details: Some(snapshot_details(snapshot)),
     }
 }
 
 fn snapshot_output(snapshot: &ProcessSnapshot, is_error: bool) -> ToolOutput {
     ToolOutput {
-        content: vec![ContentBlock::Text(TextContent::new(snapshot.combined_output()))],
+        content: vec![ContentBlock::Text(TextContent::new(
+            snapshot.combined_output(),
+        ))],
         details: Some(snapshot_details(snapshot)),
         is_error,
     }
@@ -894,7 +898,9 @@ impl DevinProcessTool {
             call_id,
             status,
             artifact_refs,
-            output.is_error.then(|| "process tool execution failed".to_string()),
+            output
+                .is_error
+                .then(|| "process tool execution failed".to_string()),
         );
     }
 }
@@ -952,9 +958,9 @@ impl Tool for DevinProcessTool {
                 let input: StartProcessInput = serde_json::from_value(input)
                     .map_err(|error| Error::validation(error.to_string()))?;
                 let timeout = input.timeout.map(Duration::from_secs);
-                let process_id = self
-                    .supervisor
-                    .spawn(&input.command, input.cwd.as_deref(), timeout)?;
+                let process_id =
+                    self.supervisor
+                        .spawn(&input.command, input.cwd.as_deref(), timeout)?;
                 if input.background {
                     let snapshot = self.supervisor.snapshot(&process_id, None, None)?;
                     Ok(snapshot_output(&snapshot, false))

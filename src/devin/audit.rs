@@ -117,10 +117,7 @@ impl AuditLog {
             .records
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(record) = records
-            .iter_mut()
-            .find(|record| record.call_id == call_id)
-        else {
+        let Some(record) = records.iter_mut().find(|record| record.call_id == call_id) else {
             return false;
         };
         let current_terminal = matches!(
@@ -323,7 +320,10 @@ mod tests {
         assert_eq!(records[0].status, AuditStatus::TimedOut);
         assert_eq!(records[0].approval_source.as_deref(), Some("policy"));
         assert_eq!(records[0].artifact_refs, vec!["artifact://output"]);
-        assert_eq!(records[0].redacted_error.as_deref(), Some("[REDACTED] timed out"));
+        assert_eq!(
+            records[0].redacted_error.as_deref(),
+            Some("[REDACTED] timed out")
+        );
         assert!(records[0].ended_at.is_some());
     }
 

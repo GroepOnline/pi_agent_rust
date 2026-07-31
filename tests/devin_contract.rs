@@ -106,7 +106,6 @@ fn local_devin_tool_surface_is_pinned() {
     assert_eq!(manifest.tools, expected);
 }
 
-
 #[derive(Debug, Deserialize)]
 struct ProcessToolSchemaFixture {
     schema_version: u32,
@@ -145,7 +144,10 @@ fn native_process_tool_schemas_are_complete_and_paired_with_pinned_evidence() {
 
     assert_eq!(fixture.schema_version, 1);
     assert_eq!(fixture.contract_version, "pi.devin.process-tools.v1");
-    assert_eq!(fixture.evidence.classification, "pinned_historical_evidence");
+    assert_eq!(
+        fixture.evidence.classification,
+        "pinned_historical_evidence"
+    );
     assert_eq!(fixture.evidence.devin_version, "3000.2.17");
     assert_eq!(fixture.evidence.transcript_format, "ATIF-v1.7");
     assert_eq!(fixture.evidence.transcripts_compared, 4);
@@ -158,7 +160,12 @@ fn native_process_tool_schemas_are_complete_and_paired_with_pinned_evidence() {
         fixture.evidence.full_schema_provenance,
         "native_rust_implementation_contract"
     );
-    assert!(fixture.evidence.note.contains("without claiming byte-for-byte"));
+    assert!(
+        fixture
+            .evidence
+            .note
+            .contains("without claiming byte-for-byte")
+    );
 
     for name in [
         "exec",
@@ -174,7 +181,10 @@ fn native_process_tool_schemas_are_complete_and_paired_with_pinned_evidence() {
             "fixture must retain the pinned historical parameter hash for {name}"
         );
         assert_eq!(entry.parameters, process_tool_schema(name));
-        assert_eq!(entry.parameters.get("type"), Some(&Value::String("object".into())));
+        assert_eq!(
+            entry.parameters.get("type"),
+            Some(&Value::String("object".into()))
+        );
         assert!(entry.parameters.get("properties").is_some());
         assert!(entry.parameters.get("required").is_some());
     }

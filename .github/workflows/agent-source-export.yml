@@ -1,0 +1,25 @@
+name: agent-source-export
+
+on:
+  push:
+    branches:
+      - agent-source-export
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Package source
+        run: tar --exclude=.git --exclude=target -czf "$RUNNER_TEMP/pi_agent_rust-source.tar.gz" .
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-agent-rust-source
+          path: ${{ runner.temp }}/pi_agent_rust-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1

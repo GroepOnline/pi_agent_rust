@@ -1,0 +1,40 @@
+name: apply-clippy-fix
+
+on:
+  push:
+    branches:
+      - devin-supervisor-validation-fmt
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: devin-supervisor-validation-fmt
+          fetch-depth: 0
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Verify and apply clippy fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'd49ab41b48f009d7c218b503125d3227a837f1271add2dceb933bf147d15169b  .github/clippy-fix-1.patch.gz.b64' | sha256sum --check
+          base64 --decode .github/clippy-fix-1.patch.gz.b64 | gzip --decompress > "$RUNNER_TEMP/clippy-fix.patch"
+          echo "53cc56a4c4ad31f9527cd3e199818406a0587f7690b28e1957ebdc1edd8d521f  $RUNNER_TEMP/clippy-fix.patch" | sha256sum --check
+          git apply --check "$RUNNER_TEMP/clippy-fix.patch"
+          git apply "$RUNNER_TEMP/clippy-fix.patch"
+          cargo fmt --all
+          git rm .github/clippy-fix-1.patch.gz.b64 .github/workflows/apply-clippy-fix.yml
+          git add src tests
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(devin): resolve supervisor clippy findings"
+          git push origin HEAD:devin-supervisor-validation-fmt

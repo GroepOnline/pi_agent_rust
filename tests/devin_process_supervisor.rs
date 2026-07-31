@@ -273,7 +273,7 @@ fn registry_drop_cleans_up_session_owned_background_processes() {
         &["exec", "get_output", "write_to_process", "kill_shell"],
         workspace.path(),
         None,
-        policy,
+        &policy,
     )
     .expect("registry");
     let supervisor = Arc::clone(registry.process_supervisor().expect("supervisor"));

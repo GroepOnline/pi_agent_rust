@@ -2748,7 +2748,7 @@ impl ToolRegistry {
         enabled: &[&str],
         cwd: &Path,
         config: Option<&Config>,
-        policy: Arc<crate::devin::ToolPolicyEngine>,
+        policy: &Arc<crate::devin::ToolPolicyEngine>,
     ) -> Result<Self> {
         if !policy.has_audit() {
             return Err(Error::validation(
@@ -2798,7 +2798,7 @@ impl ToolRegistry {
     }
 
     #[must_use]
-    pub fn process_supervisor(&self) -> Option<&Arc<crate::devin::ProcessSupervisor>> {
+    pub const fn process_supervisor(&self) -> Option<&Arc<crate::devin::ProcessSupervisor>> {
         self.process_supervisor.as_ref()
     }
 

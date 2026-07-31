@@ -18,7 +18,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::process::{Child, ChildStdin, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -79,6 +79,7 @@ impl ProcessStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ProcessSnapshot {
     pub process_id: String,
+    pub command: String,
     pub cwd: PathBuf,
     pub started_at: DateTime<Utc>,
     pub ended_at: Option<DateTime<Utc>>,
@@ -168,7 +169,6 @@ struct ProcessState {
 #[derive(Debug)]
 struct ManagedProcess {
     id: String,
-    #[allow(dead_code)]
     command: String,
     cwd: PathBuf,
     started_at: DateTime<Utc>,
@@ -197,6 +197,7 @@ impl ManagedProcess {
             .collect();
         ProcessSnapshot {
             process_id: self.id.clone(),
+            command: self.command.clone(),
             cwd: self.cwd.clone(),
             started_at: self.started_at,
             ended_at: state.ended_at,
@@ -382,22 +383,14 @@ impl ProcessSupervisor {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(id.clone(), Arc::clone(&process));
 
-        let stdout_process = Arc::clone(&process);
-        let stdout_spill = Arc::clone(&spill);
-        let stdout_thread =
-            thread::spawn(move || pump_output(stdout, false, &stdout_process, &stdout_spill));
-        let stderr_process = Arc::clone(&process);
-        let stderr_spill = Arc::clone(&spill);
-        let stderr_thread =
-            thread::spawn(move || pump_output(stderr, true, &stderr_process, &stderr_spill));
+        let (stdout_thread, stderr_thread) = spawn_output_pumps(&process, &spill, stdout, stderr);
         let config = self.config;
         thread::spawn(move || {
-            monitor_process(process, child, stdout_thread, stderr_thread, config)
+            monitor_process(&process, child, stdout_thread, stderr_thread, config);
         });
         Ok(id)
     }
 
-    #[must_use]
     pub fn snapshot(
         &self,
         process_id: &str,
@@ -604,6 +597,25 @@ impl Drop for ProcessSupervisor {
     }
 }
 
+fn spawn_output_pumps(
+    process: &Arc<ManagedProcess>,
+    spill: &Arc<Mutex<File>>,
+    stdout: impl Read + Send + 'static,
+    stderr: impl Read + Send + 'static,
+) -> (thread::JoinHandle<()>, thread::JoinHandle<()>) {
+    let stdout_process = Arc::clone(process);
+    let stdout_spill = Arc::clone(spill);
+    let stdout_thread = thread::spawn(move || {
+        pump_output(stdout, false, &stdout_process, &stdout_spill);
+    });
+    let stderr_process = Arc::clone(process);
+    let stderr_spill = Arc::clone(spill);
+    let stderr_thread = thread::spawn(move || {
+        pump_output(stderr, true, &stderr_process, &stderr_spill);
+    });
+    (stdout_thread, stderr_thread)
+}
+
 fn pump_output(
     mut reader: impl Read,
     is_stderr: bool,
@@ -654,7 +666,7 @@ fn pump_output(
 }
 
 fn monitor_process(
-    process: Arc<ManagedProcess>,
+    process: &ManagedProcess,
     mut child: Child,
     stdout_thread: thread::JoinHandle<()>,
     stderr_thread: thread::JoinHandle<()>,
@@ -840,7 +852,7 @@ pub struct DevinProcessTool {
 
 impl DevinProcessTool {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         name: &'static str,
         supervisor: Arc<ProcessSupervisor>,
         policy: Arc<ToolPolicyEngine>,

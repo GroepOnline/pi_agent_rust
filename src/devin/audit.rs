@@ -54,10 +54,11 @@ pub struct AuditRecord {
     pub redacted_error: Option<String>,
 }
 
-/// In-memory bounded audit buffer. A persistent sink can consume these records
-/// without changing policy or frontend code. Argument hashes use a random salt
-/// owned by this log, so they are comparable only within this log and are not
-/// cross-session fingerprints.
+/// In-memory bounded audit buffer.
+///
+/// A persistent sink can consume these records without changing policy or
+/// frontend code. Argument hashes use a random salt owned by this log, so they
+/// are comparable only within this log and are not cross-session fingerprints.
 #[derive(Debug)]
 pub struct AuditLog {
     capacity: usize,
@@ -151,6 +152,7 @@ impl AuditLog {
         ) {
             record.ended_at.get_or_insert_with(Utc::now);
         }
+        drop(records);
         true
     }
 

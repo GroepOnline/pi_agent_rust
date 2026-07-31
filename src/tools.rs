@@ -2765,7 +2765,7 @@ impl ToolRegistry {
         ));
         registry
             .tools
-            .extend(crate::devin::process_tools(enabled, &supervisor, &policy));
+            .extend(crate::devin::process_tools(enabled, &supervisor, policy));
         registry.process_supervisor = Some(supervisor);
         Ok(registry)
     }

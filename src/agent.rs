@@ -17,7 +17,9 @@ use crate::compaction::{self, ResolvedCompactionSettings};
 use crate::compaction_worker::{
     CompactionAdmissionSignals, CompactionQuota, CompactionWorkerState,
 };
-use crate::devin::{AuditStatus, PolicyAction, ToolPolicyEngine, ToolRequest, ToolRequestOrigin};
+use crate::devin::{
+    AuditStatus, PolicyAction, ToolPolicyEngine, ToolRequest, ToolRequestOrigin,
+};
 use crate::error::{Error, Result};
 use crate::extension_events::{
     BeforeAgentStartOutcome, InputEventOutcome, SessionBeforeCompactOutcome,
@@ -1168,6 +1170,11 @@ impl Agent {
     /// Remove the session policy gate and restore legacy approval behavior.
     pub fn clear_tool_policy(&mut self) {
         self.tool_policy = None;
+    }
+
+    /// Stop every process owned by this agent session.
+    pub fn cleanup_processes(&self) {
+        self.tools.cleanup_processes();
     }
 
     /// Get the current message history.
@@ -2973,7 +2980,6 @@ impl Agent {
         latency: SharedTurnLatencyAccumulator,
     ) -> (ToolOutput, bool) {
         let extensions = self.extensions.clone();
-
         let approval_denied_output = if let Some(policy) = &self.tool_policy {
             let decision = policy.evaluate(&ToolRequest {
                 call_id: tool_call.id.clone(),
@@ -2982,15 +2988,46 @@ impl Agent {
                 origin: ToolRequestOrigin::Native,
             });
             match decision.action {
-                PolicyAction::Allow => None,
-                PolicyAction::Ask => {
-                    self.request_tool_approval(&tool_call, Arc::clone(&on_event), true)
-                        .await
+                PolicyAction::Allow => {
+                    policy.authorize(&tool_call.id, "policy");
+                    None
                 }
-                PolicyAction::Deny => Some(Self::tool_approval_denied_output(&decision.reason)),
-                PolicyAction::Sandbox => Some(Self::tool_approval_denied_output(
-                    "sandbox execution adapter is not configured; refusing unsandboxed execution",
-                )),
+                PolicyAction::Ask => {
+                    let denied = self
+                        .request_tool_approval(&tool_call, Arc::clone(&on_event), true)
+                        .await;
+                    if denied.is_none() {
+                        policy.authorize(&tool_call.id, "user_approval");
+                    } else {
+                        policy.complete(
+                            &tool_call.id,
+                            AuditStatus::Denied,
+                            Vec::new(),
+                            Some("tool approval denied".to_string()),
+                        );
+                    }
+                    denied
+                }
+                PolicyAction::Deny => {
+                    policy.complete(
+                        &tool_call.id,
+                        AuditStatus::Denied,
+                        Vec::new(),
+                        Some(decision.reason.clone()),
+                    );
+                    Some(Self::tool_approval_denied_output(&decision.reason))
+                }
+                PolicyAction::Sandbox => {
+                    let reason =
+                        "sandbox execution adapter is not configured; refusing unsandboxed execution";
+                    policy.complete(
+                        &tool_call.id,
+                        AuditStatus::Denied,
+                        Vec::new(),
+                        Some(reason.to_string()),
+                    );
+                    Some(Self::tool_approval_denied_output(reason))
+                }
             }
         } else {
             self.request_tool_approval(&tool_call, Arc::clone(&on_event), false)
@@ -3035,29 +3072,57 @@ impl Agent {
             record_extension_hostcall_latency(&latency, hook_started_at.elapsed());
         }
 
-        if let Some(policy) = &self.tool_policy {
-            let status = if policy_denied {
-                AuditStatus::Denied
-            } else if is_error {
-                AuditStatus::Failed
-            } else {
-                AuditStatus::Succeeded
-            };
-            let error_text = is_error.then(|| {
-                output
-                    .content
-                    .iter()
-                    .filter_map(|block| match block {
-                        ContentBlock::Text(text) => Some(text.text.as_str()),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            });
-            policy.record_outcome(&tool_call.id, status, error_text.as_deref());
+        if !policy_denied && let Some(policy) = &self.tool_policy {
+            policy.complete(
+                &tool_call.id,
+                Self::audit_status_for_output(&output, is_error),
+                Self::audit_artifact_refs(&output),
+                is_error.then(|| "tool execution failed".to_string()),
+            );
         }
 
         (output, is_error)
+    }
+
+    fn audit_status_for_output(output: &ToolOutput, is_error: bool) -> AuditStatus {
+        let details = output.details.as_ref();
+        let status = details
+            .and_then(|value| value.get("status"))
+            .and_then(Value::as_str);
+        let cancellation_reason = details
+            .and_then(|value| value.get("cancellation"))
+            .and_then(|value| value.get("reason"))
+            .and_then(Value::as_str);
+        match (status, cancellation_reason, is_error) {
+            (Some("denied"), _, _) => AuditStatus::Denied,
+            (Some("timed_out"), _, _) | (_, Some("timeout"), _) => AuditStatus::TimedOut,
+            (Some("cancelled"), _, _) => AuditStatus::Cancelled,
+            (Some("failed"), _, _) | (_, _, true) => AuditStatus::Failed,
+            _ => AuditStatus::Succeeded,
+        }
+    }
+
+    fn audit_artifact_refs(output: &ToolOutput) -> Vec<String> {
+        let Some(details) = output.details.as_ref() else {
+            return Vec::new();
+        };
+        let mut refs = details
+            .get("artifactRefs")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        if let Some(artifact) = details.get("artifact") {
+            for key in ["id", "path", "relativePath"] {
+                if let Some(reference) = artifact.get(key).and_then(Value::as_str) {
+                    refs.push(reference.to_string());
+                    break;
+                }
+            }
+        }
+        refs
     }
 
     async fn request_tool_approval(
@@ -7952,6 +8017,12 @@ impl crate::extensions::ExtensionSession for AgentExtensionSession {
             label,
         )
         .await
+    }
+}
+
+impl Drop for AgentSession {
+    fn drop(&mut self) {
+        self.agent.cleanup_processes();
     }
 }
 

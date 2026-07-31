@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use super::audit::{AuditLog, AuditRecord, AuditStatus, ToolEffect, redact_error};
+use super::audit::{AuditLog, AuditRecord, AuditStatus, ToolEffect};
 use super::state::{
     AgentMode, PermissionMode, SandboxStatus, ScopeAccess, SharedDevinSessionState,
 };
@@ -157,17 +157,72 @@ impl ToolPolicyEngine {
         decision
     }
 
-    /// Write the real outcome of `call_id` back to the audit trail.
-    ///
-    /// [`Self::evaluate`] can only record the policy decision, so a later
-    /// approval rejection, extension-hook block, or tool failure would
-    /// otherwise leave the record stuck at [`AuditStatus::Pending`] and
-    /// disagree with what actually happened.
+    /// Mark a policy-approved call as executable. Process tools use this
+    /// session-local permit so direct registry calls cannot bypass approval.
+    pub fn authorize(&self, call_id: &str, source: impl Into<String>) {
+        if let Some(audit) = &self.audit {
+            let _updated = audit.update(
+                call_id,
+                AuditStatus::Allowed,
+                Some(source.into()),
+                Vec::new(),
+                None,
+            );
+        }
+    }
+
+    #[must_use]
+    pub fn is_authorized(&self, call_id: &str) -> bool {
+        self.audit
+            .as_ref()
+            .and_then(|audit| audit.status(call_id))
+            == Some(AuditStatus::Allowed)
+    }
+
+    #[must_use]
+    pub const fn has_audit(&self) -> bool {
+        self.audit.is_some()
+    }
+
+    /// Finalize the existing audit record without appending a duplicate.
+    pub fn complete(
+        &self,
+        call_id: &str,
+        status: AuditStatus,
+        artifact_refs: Vec<String>,
+        error: Option<String>,
+    ) {
+        if let Some(audit) = &self.audit {
+            let _updated = audit.update(call_id, status, None, artifact_refs, error);
+        }
+    }
+
+    /// Compatibility entry point for callers that only have an outcome and
+    /// optional error text.
     pub fn record_outcome(&self, call_id: &str, status: AuditStatus, error: Option<&str>) {
-        let Some(audit) = &self.audit else {
-            return;
-        };
-        audit.complete(call_id, status, error.map(redact_error));
+        self.complete(
+            call_id,
+            status,
+            Vec::new(),
+            error.map(str::to_string),
+        );
+    }
+
+    /// Evaluate a process call when no frontend has already done so. Calls
+    /// requiring approval remain blocked until a frontend authorizes the ID.
+    pub fn ensure_process_authorized(&self, request: &ToolRequest) -> Result<(), String> {
+        if self.is_authorized(&request.call_id) {
+            return Ok(());
+        }
+        let decision = self.evaluate(request);
+        match decision.action {
+            PolicyAction::Allow => {
+                self.authorize(&request.call_id, "policy");
+                Ok(())
+            }
+            PolicyAction::Ask => Err(format!("approval required: {}", decision.reason)),
+            PolicyAction::Deny | PolicyAction::Sandbox => Err(decision.reason),
+        }
     }
 
     fn audit_decision(
@@ -181,7 +236,7 @@ impl ToolPolicyEngine {
         };
         let now = Utc::now();
         let denied = decision.action == PolicyAction::Deny;
-        audit.push(AuditRecord {
+        audit.upsert(AuditRecord {
             call_id: request.call_id.clone(),
             session_id: state.session_id.clone(),
             parent_agent: state.parent_agent.clone(),
@@ -340,12 +395,12 @@ fn permission_decision(
     }
 }
 
-/// Bypass skips approval prompts. Path scopes are still enforced for tools that
-/// name a path, but process and network tools carry no path to check, so their
-/// effects are uncontained. Say so instead of implying a scope guarantee.
+/// Bypass skips approval prompts but never skips scope validation. Process
+/// tools are contained by their resolved working directory and session-owned
+/// process IDs; network tools have no filesystem scope to enforce.
 fn bypass_reason(category: ToolCategory) -> String {
-    if matches!(category, ToolCategory::Process | ToolCategory::Network) {
-        "bypass mode skips approval; this call is not contained by workspace scopes".to_string()
+    if category == ToolCategory::Network {
+        "bypass mode skips approval; network access has no workspace path scope".to_string()
     } else {
         "bypass mode skips approval for calls inside enforced scopes".to_string()
     }
@@ -360,7 +415,7 @@ fn validate_paths(
         return Ok(Vec::new());
     }
     let access = match category {
-        ToolCategory::FileMutation => ScopeAccess::Write,
+        ToolCategory::FileMutation | ToolCategory::Process => ScopeAccess::Write,
         ToolCategory::Read => ScopeAccess::Read,
         _ => return Ok(Vec::new()),
     };
@@ -369,6 +424,17 @@ fn validate_paths(
     };
 
     let mut scoped = Vec::new();
+    if category == ToolCategory::Process {
+        let raw_cwd = arguments
+            .get("cwd")
+            .or_else(|| arguments.get("working_dir"))
+            .or_else(|| arguments.get("workingDirectory"))
+            .and_then(Value::as_str)
+            .unwrap_or(".");
+        scoped.push(resolve_scoped_path(state, raw_cwd, access)?);
+        return Ok(scoped);
+    }
+
     for key in ["file_path", "path", "notebook_path"] {
         let Some(raw_path) = arguments.get(key).and_then(Value::as_str) else {
             continue;
@@ -579,6 +645,33 @@ mod tests {
                 .action,
             PolicyAction::Allow
         );
+    }
+
+    #[test]
+    fn bypass_process_cannot_escape_workspace_by_cwd() {
+        let workspace = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let policy = engine(workspace.path(), AgentMode::Normal, PermissionMode::Bypass);
+        let decision = policy.evaluate(&request(
+            "exec",
+            json!({
+                "command": "pwd",
+                "cwd": outside.path().display().to_string(),
+            }),
+        ));
+        assert_eq!(decision.action, PolicyAction::Deny);
+    }
+
+    #[test]
+    fn process_registry_requires_explicit_authorization_for_ask_decisions() {
+        let workspace = tempfile::tempdir().unwrap();
+        let policy = engine(workspace.path(), AgentMode::Normal, PermissionMode::Normal);
+        let call = request("exec", json!({"command": "true"}));
+        assert!(policy.ensure_process_authorized(&call).is_err());
+        policy.authorize(&call.call_id, "test");
+        assert!(policy.ensure_process_authorized(&call).is_ok());
+        policy.complete(&call.call_id, AuditStatus::Succeeded, Vec::new(), None);
+        assert!(!policy.is_authorized(&call.call_id));
     }
 
     #[test]

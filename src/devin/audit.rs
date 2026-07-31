@@ -31,6 +31,7 @@ pub enum AuditStatus {
     Succeeded,
     Failed,
     Cancelled,
+    TimedOut,
 }
 
 /// Stable audit shape. Raw tool arguments and credentials are deliberately
@@ -54,7 +55,9 @@ pub struct AuditRecord {
 }
 
 /// In-memory bounded audit buffer. A persistent sink can consume these records
-/// without changing policy or frontend code.
+/// without changing policy or frontend code. Argument hashes use a random salt
+/// owned by this log, so they are comparable only within this log and are not
+/// cross-session fingerprints.
 #[derive(Debug)]
 pub struct AuditLog {
     capacity: usize,
@@ -77,36 +80,86 @@ impl AuditLog {
         }
     }
 
-    pub fn push(&self, record: AuditRecord) {
+    /// Insert a new record or replace the existing record for the same call.
+    ///
+    /// A tool call owns exactly one audit record for its complete lifecycle;
+    /// repeated policy checks and execution updates therefore mutate in place.
+    pub fn upsert(&self, record: AuditRecord) {
         let mut records = self
             .records
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(existing) = records
+            .iter_mut()
+            .find(|existing| existing.call_id == record.call_id)
+        {
+            *existing = record;
+            return;
+        }
         if records.len() == self.capacity {
             records.pop_front();
         }
         records.push_back(record);
     }
 
-    /// Finalize the newest open record for `call_id` once execution resolves.
-    ///
-    /// Policy evaluation can only record the decision it made, so approval
-    /// rejections, extension-hook blocks, and tool failures must be written
-    /// back here. Records already closed by policy (a denial) are left alone.
-    pub fn complete(&self, call_id: &str, status: AuditStatus, redacted_error: Option<String>) {
+    /// Update the execution state for an existing call without appending a
+    /// second record. Returns `false` when the call is unknown or when a
+    /// different terminal outcome was already recorded.
+    pub fn update(
+        &self,
+        call_id: &str,
+        status: AuditStatus,
+        approval_source: Option<String>,
+        artifact_refs: Vec<String>,
+        redacted_error: Option<String>,
+    ) -> bool {
         let mut records = self
             .records
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(record) = records
+        let Some(record) = records
             .iter_mut()
-            .rev()
-            .find(|record| record.call_id == call_id && record.ended_at.is_none())
-        {
-            record.ended_at = Some(Utc::now());
-            record.status = status;
-            record.redacted_error = redacted_error;
+            .find(|record| record.call_id == call_id)
+        else {
+            return false;
+        };
+        let current_terminal = matches!(
+            record.status,
+            AuditStatus::Denied
+                | AuditStatus::Succeeded
+                | AuditStatus::Failed
+                | AuditStatus::Cancelled
+                | AuditStatus::TimedOut
+        );
+        if current_terminal && record.status != status {
+            return false;
         }
+        record.status = status;
+        if approval_source.is_some() {
+            record.approval_source = approval_source;
+        }
+        if !artifact_refs.is_empty() {
+            record.artifact_refs = artifact_refs;
+        }
+        if let Some(error) = redacted_error {
+            record.redacted_error = Some(redact_error(&error));
+        }
+        if matches!(
+            status,
+            AuditStatus::Denied
+                | AuditStatus::Succeeded
+                | AuditStatus::Failed
+                | AuditStatus::Cancelled
+                | AuditStatus::TimedOut
+        ) {
+            record.ended_at.get_or_insert_with(Utc::now);
+        }
+        true
+    }
+
+    /// Finalize the newest open record for `call_id` once execution resolves.
+    pub fn complete(&self, call_id: &str, status: AuditStatus, error: Option<String>) {
+        let _updated = self.update(call_id, status, None, Vec::new(), error);
     }
 
     #[must_use]
@@ -117,6 +170,16 @@ impl AuditLog {
             .iter()
             .cloned()
             .collect()
+    }
+
+    #[must_use]
+    pub fn status(&self, call_id: &str) -> Option<AuditStatus> {
+        self.records
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .find(|record| record.call_id == call_id)
+            .map(|record| record.status)
     }
 
     #[must_use]
@@ -223,6 +286,45 @@ mod tests {
             AuditLog::new(8).hash_arguments(&arguments),
             AuditLog::new(8).hash_arguments(&arguments)
         );
+    }
+
+    #[test]
+    fn lifecycle_updates_replace_the_existing_call_record() {
+        let audit = AuditLog::new(8);
+        let now = Utc::now();
+        let record = AuditRecord {
+            call_id: "call-1".to_string(),
+            session_id: "session".to_string(),
+            parent_agent: None,
+            tool_name: "exec".to_string(),
+            argument_hash: "hash".to_string(),
+            effects: vec![ToolEffect::Process],
+            risk: RiskClass::Critical,
+            policy_action: PolicyAction::Allow,
+            approval_source: None,
+            started_at: now,
+            ended_at: None,
+            status: AuditStatus::Pending,
+            artifact_refs: Vec::new(),
+            redacted_error: None,
+        };
+        audit.upsert(record.clone());
+        audit.upsert(record);
+        assert_eq!(audit.snapshot().len(), 1);
+        assert!(audit.update(
+            "call-1",
+            AuditStatus::TimedOut,
+            Some("policy".to_string()),
+            vec!["artifact://output".to_string()],
+            Some("token=secret timed out".to_string()),
+        ));
+        let records = audit.snapshot();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].status, AuditStatus::TimedOut);
+        assert_eq!(records[0].approval_source.as_deref(), Some("policy"));
+        assert_eq!(records[0].artifact_refs, vec!["artifact://output"]);
+        assert_eq!(records[0].redacted_error.as_deref(), Some("[REDACTED] timed out"));
+        assert!(records[0].ended_at.is_some());
     }
 
     #[test]

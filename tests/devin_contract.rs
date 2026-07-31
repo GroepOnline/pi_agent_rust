@@ -1,6 +1,8 @@
 //! Regression contract extracted from the installed Devin CLI transcripts.
 
+use pi::devin::process_tool_schema;
 use serde::Deserialize;
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize)]
@@ -102,4 +104,78 @@ fn local_devin_tool_surface_is_pinned() {
         ]
     );
     assert_eq!(manifest.tools, expected);
+}
+
+
+#[derive(Debug, Deserialize)]
+struct ProcessToolSchemaFixture {
+    schema_version: u32,
+    contract_version: String,
+    evidence: ProcessToolSchemaEvidence,
+    tools: BTreeMap<String, ProcessToolSchemaEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ProcessToolSchemaEvidence {
+    classification: String,
+    devin_version: String,
+    transcript_format: String,
+    transcripts_compared: usize,
+    installed_devin_version_at_extraction: String,
+    current_version_parity_claimed: bool,
+    full_schema_provenance: String,
+    note: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ProcessToolSchemaEntry {
+    pinned_parameter_hash: String,
+    parameters: Value,
+}
+
+#[test]
+fn native_process_tool_schemas_are_complete_and_paired_with_pinned_evidence() {
+    let fixture: ProcessToolSchemaFixture = serde_json::from_str(include_str!(
+        "fixtures/devin_cli/process_tool_parameter_schemas.json"
+    ))
+    .expect("valid process tool schema fixture");
+    let manifest: ToolSchemaManifest =
+        serde_json::from_str(include_str!("fixtures/devin_cli/tool_schema_manifest.json"))
+            .expect("valid Devin tool schema manifest");
+
+    assert_eq!(fixture.schema_version, 1);
+    assert_eq!(fixture.contract_version, "pi.devin.process-tools.v1");
+    assert_eq!(fixture.evidence.classification, "pinned_historical_evidence");
+    assert_eq!(fixture.evidence.devin_version, "3000.2.17");
+    assert_eq!(fixture.evidence.transcript_format, "ATIF-v1.7");
+    assert_eq!(fixture.evidence.transcripts_compared, 4);
+    assert_eq!(
+        fixture.evidence.installed_devin_version_at_extraction,
+        "3000.3.22"
+    );
+    assert!(!fixture.evidence.current_version_parity_claimed);
+    assert_eq!(
+        fixture.evidence.full_schema_provenance,
+        "native_rust_implementation_contract"
+    );
+    assert!(fixture.evidence.note.contains("without claiming byte-for-byte"));
+
+    for name in [
+        "exec",
+        "shell_command",
+        "get_output",
+        "write_to_process",
+        "kill_shell",
+    ] {
+        let entry = fixture.tools.get(name).expect("process schema is present");
+        assert_eq!(
+            Some(&entry.pinned_parameter_hash),
+            manifest.tools.get(name),
+            "fixture must retain the pinned historical parameter hash for {name}"
+        );
+        assert_eq!(entry.parameters, process_tool_schema(name));
+        assert_eq!(entry.parameters.get("type"), Some(&Value::String("object".into())));
+        assert!(entry.parameters.get("properties").is_some());
+        assert!(entry.parameters.get("required").is_some());
+    }
 }

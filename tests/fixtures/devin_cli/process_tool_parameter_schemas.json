@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "contract_version": "pi.devin.process-tools.v1",
+  "evidence": {
+    "classification": "pinned_historical_evidence",
+    "devin_version": "3000.2.17",
+    "transcript_format": "ATIF-v1.7",
+    "transcripts_compared": 4,
+    "installed_devin_version_at_extraction": "3000.3.22",
+    "current_version_parity_claimed": false,
+    "full_schema_provenance": "native_rust_implementation_contract",
+    "note": "The transcript export retained canonical parameter hashes but not the full parameter objects. These complete schemas are the executable Rust contract and are paired with the pinned hashes without claiming byte-for-byte reconstruction."
+  },
+  "tools": {
+    "exec": {
+      "pinned_parameter_hash": "75d325f0ee6e",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "cwd": { "type": "string" },
+          "timeout": { "type": "integer", "minimum": 0 },
+          "background": { "type": "boolean", "default": false }
+        },
+        "required": ["command"]
+      }
+    },
+    "shell_command": {
+      "pinned_parameter_hash": "bbe0da554d85",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "cwd": { "type": "string" },
+          "timeout": { "type": "integer", "minimum": 0 },
+          "background": { "type": "boolean", "default": false }
+        },
+        "required": ["command"]
+      }
+    },
+    "get_output": {
+      "pinned_parameter_hash": "ba9743b81207",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "process_id": { "type": "string", "minLength": 1 },
+          "stdout_offset": { "type": "integer", "minimum": 0 },
+          "stderr_offset": { "type": "integer", "minimum": 0 },
+          "wait_ms": { "type": "integer", "minimum": 0, "maximum": 30000 }
+        },
+        "required": ["process_id"]
+      }
+    },
+    "write_to_process": {
+      "pinned_parameter_hash": "10c1bd8e64f0",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "process_id": { "type": "string", "minLength": 1 },
+          "input": { "type": "string" },
+          "close_stdin": { "type": "boolean", "default": false }
+        },
+        "required": ["process_id", "input"]
+      }
+    },
+    "kill_shell": {
+      "pinned_parameter_hash": "badcd1021e24",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "process_id": { "type": "string", "minLength": 1 },
+          "grace_period_ms": { "type": "integer", "minimum": 0, "maximum": 5000 }
+        },
+        "required": ["process_id"]
+      }
+    }
+  }
+}

@@ -23,7 +23,7 @@ use std::fmt::Write as _;
 use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Mutex, OnceLock, mpsc};
+use std::sync::{Arc, Mutex, OnceLock, mpsc};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use unicode_normalization::UnicodeNormalization;
@@ -2700,6 +2700,7 @@ pub(crate) fn resize_image_if_needed(
 /// - Enumerating tool schemas when building provider requests.
 pub struct ToolRegistry {
     tools: Vec<Box<dyn Tool>>,
+    process_supervisor: Option<Arc<crate::devin::ProcessSupervisor>>,
 }
 
 impl ToolRegistry {
@@ -2735,17 +2736,54 @@ impl ToolRegistry {
             }
         }
 
-        Self { tools }
+        Self {
+            tools,
+            process_supervisor: None,
+        }
+    }
+
+    /// Create a registry whose Devin process tools are bound to the central
+    /// policy engine and one session-owned supervisor.
+    pub fn new_with_devin_policy(
+        enabled: &[&str],
+        cwd: &Path,
+        config: Option<&Config>,
+        policy: Arc<crate::devin::ToolPolicyEngine>,
+    ) -> Result<Self> {
+        if !policy.has_audit() {
+            return Err(Error::validation(
+                "Devin process tools require an audit-backed policy engine",
+            ));
+        }
+        let mut registry = Self::new(enabled, cwd, config);
+        let shell_path = config.and_then(|config| config.shell_path.clone());
+        let command_prefix = config.and_then(|config| config.shell_command_prefix.clone());
+        let supervisor = Arc::new(crate::devin::ProcessSupervisor::new(
+            cwd,
+            shell_path,
+            command_prefix,
+        ));
+        registry.tools.extend(crate::devin::process_tools(
+            enabled,
+            &supervisor,
+            &policy,
+        ));
+        registry.process_supervisor = Some(supervisor);
+        Ok(registry)
     }
 
     /// Construct a registry from a pre-built tool list.
     pub fn from_tools(tools: Vec<Box<dyn Tool>>) -> Self {
-        Self { tools }
+        Self {
+            tools,
+            process_supervisor: None,
+        }
     }
 
     /// Convert the registry into the owned tool list.
-    pub fn into_tools(self) -> Vec<Box<dyn Tool>> {
-        self.tools
+    pub fn into_tools(mut self) -> Vec<Box<dyn Tool>> {
+        self.process_supervisor = None;
+        std::mem::take(&mut self.tools)
     }
 
     /// Append a tool.
@@ -2761,6 +2799,18 @@ impl ToolRegistry {
         self.tools.extend(tools);
     }
 
+    #[must_use]
+    pub fn process_supervisor(&self) -> Option<&Arc<crate::devin::ProcessSupervisor>> {
+        self.process_supervisor.as_ref()
+    }
+
+    /// Stop every process owned by this registry's session.
+    pub fn cleanup_processes(&self) {
+        if let Some(supervisor) = &self.process_supervisor {
+            supervisor.cleanup_all();
+        }
+    }
+
     /// Get all tools.
     pub fn tools(&self) -> &[Box<dyn Tool>] {
         &self.tools
@@ -2772,6 +2822,12 @@ impl ToolRegistry {
             .iter()
             .find(|t| t.name() == name)
             .map(std::convert::AsRef::as_ref)
+    }
+}
+
+impl Drop for ToolRegistry {
+    fn drop(&mut self) {
+        self.cleanup_processes();
     }
 }
 
@@ -6771,7 +6827,7 @@ pub(crate) fn kill_process_group_tree(pid: Option<u32>) {
     kill_process_tree_with(pid, sysinfo::Signal::Kill, true);
 }
 
-fn terminate_process_group_tree(pid: Option<u32>) {
+pub(crate) fn terminate_process_group_tree(pid: Option<u32>) {
     kill_process_tree_with(pid, sysinfo::Signal::Term, true);
 }
 

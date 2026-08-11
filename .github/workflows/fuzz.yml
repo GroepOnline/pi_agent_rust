@@ -34,7 +34,8 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'quick' || inputs.profile == 'all'))
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -168,7 +169,8 @@ jobs:
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'nightly' || inputs.profile == 'all'))
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -310,7 +312,8 @@ jobs:
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'nightly' || inputs.profile == 'all'))
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     timeout-minutes: 60
     defaults:
       run:

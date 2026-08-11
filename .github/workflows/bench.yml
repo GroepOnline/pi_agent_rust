@@ -15,7 +15,8 @@ env:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     defaults:
       run:
         working-directory: pi_agent_rust
@@ -181,7 +182,8 @@ jobs:
 
   # Compare with main branch baseline (only on PRs)
   compare:
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     if: github.event_name == 'pull_request'
     needs: benchmark
     defaults:

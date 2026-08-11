@@ -1403,7 +1403,8 @@ jobs:
 
   release_evidence_gate:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     env:
       CI: "true"
       RUST_BACKTRACE: "1"
@@ -1438,7 +1439,8 @@ jobs:
 
   qa_shards_linux:
     name: qa-shard (${{ matrix.shard.name }})
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -1684,7 +1686,8 @@ jobs:
 
   qa_shard_summary:
     name: qa-shard-summary
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     needs: qa_shards_linux
     if: always()
     steps:
@@ -2206,7 +2209,8 @@ jobs:
   # This job locks that contract in so it can never silently regress.
   library_no_default_features:
     name: lib (--no-default-features, no TUI)
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     env:
       CI: "true"
       RUST_BACKTRACE: "1"

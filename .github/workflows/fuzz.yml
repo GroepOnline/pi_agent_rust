@@ -2,14 +2,10 @@ name: Fuzz CI
 
 # Daily cron (02:00 UTC) occupied the only company-control `heavy` listener
 # (~12G, 30 min × 4 targets) and starved ChefApp/public-repo CI. Nightly +
-# coverage run on workflow_dispatch only. Quick fuzz is path-filtered and
-# serial so a Pi PR cannot take all of `pr-isolated`.
+# coverage stay workflow_dispatch only. Quick fuzz is PR/dispatch, always
+# pr-isolated, serial. A push of this workflow file must not enqueue 13
+# heavy jobs (that is what starved ChefApp after #6 merged).
 on:
-  push:
-    branches: [main]
-    paths:
-      - "fuzz/**"
-      - ".github/workflows/fuzz.yml"
   pull_request:
     branches: [main]
     paths:
@@ -42,12 +38,11 @@ jobs:
   fuzz-quick:
     name: "fuzz-quick (${{ matrix.target }})"
     if: >-
-      github.event_name == 'push' ||
       github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'quick' || inputs.profile == 'all'))
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    # Quick fuzz never occupies the only heavy listener.
+    runs-on: [self-hosted, Linux, X64, pr-isolated]
     timeout-minutes: 45
     strategy:
       fail-fast: false

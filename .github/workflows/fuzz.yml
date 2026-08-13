@@ -42,7 +42,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'quick' || inputs.profile == 'all'))
     # Quick fuzz never occupies the only heavy listener.
-    runs-on: [self-hosted, Linux, X64, pr-isolated]
+    runs-on: [self-hosted, Linux, X64, company-control, pr-isolated]
     timeout-minutes: 45
     strategy:
       fail-fast: false

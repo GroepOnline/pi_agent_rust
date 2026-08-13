@@ -10,8 +10,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+        os: [ubuntu-latest]
+    # Fleet only: GitHub-hosted runners banned until Actions spending restored.
+    # macos/windows entries were dropped from the matrix because they can only
+    # run hosted and were permanently billing-red on every PR (zero signal).
+    # Re-add when Actions billing is restored.
+    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     env:
       CI: "true"
       VCR_MODE: "playback"
@@ -30,7 +34,7 @@ jobs:
         shell: bash
     steps:
       - name: Free disk space [linux]
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         working-directory: /
         run: |
           set -euxo pipefail
@@ -142,12 +146,27 @@ jobs:
           PY
 
       - name: Install system deps (fd, rg, xcb) [linux]
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: |
           set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y fd-find ripgrep libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
+      - name: Verify system deps [self-hosted linux]
+        if: runner.os == 'Linux' && runner.environment != 'github-hosted'
+        run: |
+          set -euo pipefail
+          missing=0
+          for tool in fd fdfind rg; do
+            if command -v "$tool" >/dev/null 2>&1; then echo "found $tool"; else
+              echo "::error::missing $tool on self-hosted runner (provision fd/rg on the fleet runner)"; missing=1
+            fi
+          done
+          if ! ldconfig -p 2>/dev/null | grep -q 'libxcb.so'; then
+            echo "::error::missing libxcb on self-hosted runner (provision xcb dev libs on the fleet runner)"; missing=1
+          fi
+          exit "$missing"
 
       - name: Install system deps (fd, rg) [macos]
         if: runner.os == 'macOS'
@@ -1515,11 +1534,24 @@ jobs:
           fetch-depth: 0
 
       - name: Install system deps (fd, rg)
+        if: runner.environment == 'github-hosted'
         run: |
           set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y fd-find ripgrep
           sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
+      - name: Verify system deps (fd, rg) [self-hosted]
+        if: runner.environment != 'github-hosted'
+        run: |
+          set -euo pipefail
+          missing=0
+          for tool in fd fdfind rg; do
+            if command -v "$tool" >/dev/null 2>&1; then echo "found $tool"; else
+              echo "::error::missing $tool on self-hosted runner (provision fd/rg on the fleet runner)"; missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Install Rust toolchain (nightly)
         uses: dtolnay/rust-toolchain@nightly

@@ -48,6 +48,7 @@ jobs:
         shell: bash
     steps:
       - name: Free disk space
+        if: runner.environment == 'github-hosted'
         working-directory: /
         run: |
           set -euxo pipefail
@@ -69,10 +70,20 @@ jobs:
           fetch-depth: 0
 
       - name: Install system deps
+        if: runner.environment == 'github-hosted'
         run: |
           set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Verify system deps (xcb) [self-hosted]
+        if: runner.environment != 'github-hosted'
+        run: |
+          set -euo pipefail
+          if ! ldconfig -p 2>/dev/null | grep -q 'libxcb.so'; then
+            echo "::error::missing libxcb on self-hosted runner (provision xcb dev libs)"; exit 1
+          fi
+          echo "found libxcb"
 
       - name: Prepare temp directories
         run: |

@@ -111,7 +111,7 @@ jobs:
         run: echo "Skipping ${{ matrix.name }} for event/profile selection"
 
       - name: Free disk space
-        if: env.SHOULD_RUN == 'true'
+        if: env.SHOULD_RUN == 'true' && runner.environment == 'github-hosted'
         working-directory: /
         run: |
           set -euxo pipefail
@@ -165,12 +165,27 @@ jobs:
           fetch-depth: 1
 
       - name: Install system deps (fd, rg, xcb) [linux]
-        if: env.SHOULD_RUN == 'true'
+        if: env.SHOULD_RUN == 'true' && runner.environment == 'github-hosted'
         run: |
           set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y fd-find ripgrep libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
+      - name: Verify system deps (fd, rg, xcb) [self-hosted]
+        if: env.SHOULD_RUN == 'true' && runner.environment != 'github-hosted'
+        run: |
+          set -euo pipefail
+          missing=0
+          for tool in fd fdfind rg; do
+            if command -v "$tool" >/dev/null 2>&1; then echo "found $tool"; else
+              echo "::error::missing $tool on self-hosted runner (provision on the fleet runner)"; missing=1
+            fi
+          done
+          if ! ldconfig -p 2>/dev/null | grep -q 'libxcb.so'; then
+            echo "::error::missing libxcb on self-hosted runner (provision xcb dev libs)"; missing=1
+          fi
+          exit "$missing"
 
       - name: Install Rust toolchain (nightly)
         if: env.SHOULD_RUN == 'true'
@@ -202,11 +217,18 @@ jobs:
         run: npm ci
 
       - name: Symlink bun for conformance tests
-        if: env.SHOULD_RUN == 'true'
+        if: env.SHOULD_RUN == 'true' && runner.environment == 'github-hosted'
         run: |
           set -euxo pipefail
           sudo mkdir -p /home/ubuntu/.bun/bin
           sudo ln -sf "$(command -v bun)" /home/ubuntu/.bun/bin/bun
+
+      - name: Symlink bun for conformance tests [self-hosted]
+        if: env.SHOULD_RUN == 'true' && runner.environment != 'github-hosted'
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/.bun/bin"
+          ln -sf "$(command -v bun)" "$HOME/.bun/bin/bun"
 
       - name: "Run: ${{ matrix.name }}"
         if: env.SHOULD_RUN == 'true'

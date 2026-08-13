@@ -1,12 +1,20 @@
 name: Fuzz CI
 
+# Daily cron (02:00 UTC) occupied the only company-control `heavy` listener
+# (~12G, 30 min × 4 targets) and starved ChefApp/public-repo CI. Nightly +
+# coverage run on workflow_dispatch only. Quick fuzz is path-filtered and
+# serial so a Pi PR cannot take all of `pr-isolated`.
 on:
   push:
     branches: [main]
+    paths:
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "0 2 * * *"
+    paths:
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
   workflow_dispatch:
     inputs:
       profile:
@@ -18,6 +26,10 @@ on:
           - quick
           - nightly
           - all
+
+concurrency:
+  group: fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -39,7 +51,7 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 1
       matrix:
         target:
           - fuzz_sse_parser
@@ -166,10 +178,10 @@ jobs:
   fuzz-nightly:
     name: "fuzz-nightly (${{ matrix.target }})"
     if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' &&
-        (inputs.profile == 'nightly' || inputs.profile == 'all'))
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.profile == 'nightly' || inputs.profile == 'all')
     # GitHub-hosted runners banned until Actions spending restored (fleet only).
+    # Dispatch-only: never occupy the company-control heavy lane on a cron.
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     timeout-minutes: 120
     strategy:
@@ -309,9 +321,8 @@ jobs:
   fuzz-coverage-dashboard:
     name: fuzz-coverage-dashboard
     if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' &&
-        (inputs.profile == 'nightly' || inputs.profile == 'all'))
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.profile == 'nightly' || inputs.profile == 'all')
     # GitHub-hosted runners banned until Actions spending restored (fleet only).
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     timeout-minutes: 60

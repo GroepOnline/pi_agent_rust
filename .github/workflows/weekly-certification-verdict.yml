@@ -26,15 +26,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare temp directories
+        run: |
+          set -euxo pipefail
+          install -d -m 700 "$CARGO_TARGET_DIR" "$TMPDIR"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
-
-      - name: Prepare temp directories
-        run: |
-          set -euxo pipefail
-          mkdir -p "$CARGO_TARGET_DIR" "$TMPDIR"
 
       - name: Refresh must-pass extension gate
         continue-on-error: true

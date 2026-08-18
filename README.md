@@ -519,7 +519,7 @@ cargo run --example ext_unvendored_fetch_run -- run-all --workers 8 --no-probe
 cargo run --example ext_full_validation --
 ```
 
-### Historical evidence snapshot (extension gate refresh 2026-05-15)
+### Historical evidence snapshot (artifacts 2026-05-12 to 2026-05-18; extension gate refresh 2026-05-15)
 
 > This is a retained historical baseline, not a claim of current certification. The scheduled certification workflow and its generated verdict artifacts remain authoritative for current status.
 

@@ -519,7 +519,9 @@ cargo run --example ext_unvendored_fetch_run -- run-all --workers 8 --no-probe
 cargo run --example ext_full_validation --
 ```
 
-### Latest run snapshot (extension gate refresh 2026-05-15)
+### Historical evidence snapshot (extension gate refresh 2026-05-15)
+
+> This is a retained historical baseline, not a claim of current certification. The scheduled certification workflow and its generated verdict artifacts remain authoritative for current status.
 
 From:
 - `tests/ext_conformance/reports/gate/must_pass_gate_verdict.json` (generated `2026-05-15T17:03:02.000Z`, run `local-20260515T170218075Z`)
@@ -535,7 +537,6 @@ From:
 - Extension health delta: `223/223` tested extensions passed (`100.0%`), `0` regressions, `13` fixes vs the 2026-02-07 baseline, with `1` intentionally excluded test fixture disclosed in the report *(from tests/ext_conformance/reports/health_delta/health_delta_report.json)*
 - Health-delta full-manifest non-pass extensions: `0`; `base_fixtures` is a test-only negative fixture excluded from release-facing pass-rate claims with disposition recorded in `docs/evidence/extension-health-delta-failure-disposition.json`.
 - Extension journey coverage: `123/123` journey scenarios passed (`100.0%`); command, event-subscriber, multi-capability, passive, and tool-provider categories are green *(from tests/ext_conformance/reports/journeys/journey_report.json)*
-- Stress triage: `1,500` events, `0` errors, p99 latency `396us`, RSS growth `0.0%` *(from tests/perf/reports/stress_triage.json, run bd-2zcs5.71-darkgoose-20260510T0058Z)*
 
 ---
 

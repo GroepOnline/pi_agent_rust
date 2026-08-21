@@ -221,14 +221,23 @@ jobs:
         run: |
           set -euxo pipefail
           sudo mkdir -p /home/ubuntu/.bun/bin
-          sudo ln -sf "$(command -v bun)" /home/ubuntu/.bun/bin/bun
+          # Persistent runners may already resolve bun through this symlink;
+          # `ln -sf X X` errors with "are the same file". Only link when needed.
+          target="$(command -v bun)"
+          if [ "$(readlink -f "$target")" != "$(readlink -f /home/ubuntu/.bun/bin/bun)" ]; then
+            sudo ln -sf "$target" /home/ubuntu/.bun/bin/bun
+          fi
 
       - name: Symlink bun for conformance tests [self-hosted]
         if: env.SHOULD_RUN == 'true' && runner.environment != 'github-hosted'
         run: |
           set -euxo pipefail
           mkdir -p "$HOME/.bun/bin"
-          ln -sf "$(command -v bun)" "$HOME/.bun/bin/bun"
+          # Same guard as the github-hosted variant: skip when already linked.
+          target="$(command -v bun)"
+          if [ "$(readlink -f "$target")" != "$(readlink -f "$HOME/.bun/bin/bun")" ]; then
+            ln -sf "$target" "$HOME/.bun/bin/bun"
+          fi
 
       - name: "Run: ${{ matrix.name }}"
         if: env.SHOULD_RUN == 'true'

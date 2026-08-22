@@ -128,13 +128,13 @@ jobs:
 
       - name: Checkout pi_agent_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
       - name: Checkout asupersync
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/asupersync
           path: asupersync
@@ -142,7 +142,7 @@ jobs:
 
       - name: Checkout rich_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/rich_rust
           path: rich_rust
@@ -150,7 +150,7 @@ jobs:
 
       - name: Checkout charmed_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/charmed_rust
           path: charmed_rust
@@ -158,7 +158,7 @@ jobs:
 
       - name: Checkout sqlmodel_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/sqlmodel_rust
           path: sqlmodel_rust
@@ -195,7 +195,7 @@ jobs:
 
       - name: Cargo cache
         if: env.SHOULD_RUN == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -247,7 +247,7 @@ jobs:
 
       - name: Upload conformance logs
         if: always() && env.SHOULD_RUN == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-${{ matrix.name }}-${{ github.sha }}
           path: |
@@ -267,10 +267,10 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download conformance artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: conformance-full-report-*
           merge-multiple: true
@@ -296,7 +296,7 @@ jobs:
         run: python3 scripts/conformance_trend.py
 
       - name: Upload trend report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-trend-${{ github.sha }}
           path: |

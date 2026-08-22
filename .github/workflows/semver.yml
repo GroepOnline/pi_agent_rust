@@ -64,7 +64,7 @@ jobs:
           df -h /
 
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0

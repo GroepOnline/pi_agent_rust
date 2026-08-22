@@ -60,35 +60,35 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
           ref: ${{ needs.plan.outputs.tag }}
 
       - name: Checkout asupersync
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/asupersync
           path: asupersync
           fetch-depth: 1
 
       - name: Checkout rich_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/rich_rust
           path: rich_rust
           fetch-depth: 1
 
       - name: Checkout charmed_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/charmed_rust
           path: charmed_rust
           fetch-depth: 1
 
       - name: Checkout sqlmodel_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/sqlmodel_rust
           path: sqlmodel_rust

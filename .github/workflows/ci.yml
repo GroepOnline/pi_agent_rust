@@ -50,7 +50,7 @@ jobs:
           df -h /
 
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
@@ -760,7 +760,7 @@ jobs:
 
       - name: Upload inclusion manifest artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: inclusion-manifest-${{ matrix.os }}-${{ github.sha }}
           path: |
@@ -869,7 +869,7 @@ jobs:
 
       - name: Upload scenario-cell gate artifacts [linux]
         if: runner.os == 'Linux' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scenario-cell-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -1141,7 +1141,7 @@ jobs:
 
       - name: Upload must-pass gate artifacts [linux]
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: must-pass-gate-${{ github.sha }}
           path: |
@@ -1160,7 +1160,7 @@ jobs:
 
       - name: Upload cross-platform report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cross-platform-${{ matrix.os }}-${{ github.sha }}
           path: |
@@ -1323,7 +1323,7 @@ jobs:
 
       - name: Upload unified evidence bundle [linux]
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evidence-bundle-${{ github.sha }}
           path: |
@@ -1334,7 +1334,7 @@ jobs:
 
       - name: Upload full-suite gate artifacts [linux]
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: full-suite-gate-${{ github.sha }}
           path: |
@@ -1382,7 +1382,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: |
@@ -1392,7 +1392,7 @@ jobs:
 
       - name: Upload conformance reports
         if: runner.os == 'Linux' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-reports
           path: |
@@ -1409,7 +1409,7 @@ jobs:
 
       - name: Upload provider test artifacts
         if: runner.os == 'Linux' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: provider-test-artifacts-${{ github.sha }}
           path: |
@@ -1435,7 +1435,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
@@ -1528,7 +1528,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
@@ -1708,7 +1708,7 @@ jobs:
 
       - name: Upload shard artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-shard-${{ matrix.shard.name }}-${{ github.sha }}
           path: |
@@ -1724,7 +1724,7 @@ jobs:
     if: always()
     steps:
       - name: Download shard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: ci-shard-*
           path: shard-artifacts
@@ -2225,7 +2225,7 @@ jobs:
           PY
 
       - name: Upload merged shard summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-shard-summary-${{ github.sha }}
           path: |
@@ -2254,7 +2254,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0

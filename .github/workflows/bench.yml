@@ -39,7 +39,7 @@ jobs:
           df -h /
 
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
@@ -72,7 +72,7 @@ jobs:
           components: clippy
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -190,7 +190,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-${{ github.sha }}
           path: |
@@ -208,12 +208,12 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           path: main-branch
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: pr-branch
 
@@ -237,7 +237,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry

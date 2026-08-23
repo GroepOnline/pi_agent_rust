@@ -42,7 +42,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'quick' || inputs.profile == 'all'))
     # Quick fuzz never occupies the only heavy listener.
-    runs-on: [self-hosted, Linux, X64, company-control, pr-isolated]
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -175,9 +175,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       (inputs.profile == 'nightly' || inputs.profile == 'all')
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
     # Dispatch-only: never occupy the company-control heavy lane on a cron.
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -318,8 +317,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       (inputs.profile == 'nightly' || inputs.profile == 'all')
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
       run:

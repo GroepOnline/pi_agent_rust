@@ -33,8 +33,7 @@ jobs:
   # ─── Shared setup (reusable via needs) ────────────────────────────────────
 
   conformance-matrix:
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: pi_agent_rust
@@ -272,8 +271,7 @@ jobs:
     needs: [conformance-matrix]
     if: >-
       github.event_name == 'schedule' && github.event.schedule == '0 2 * * *'
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -11,11 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-    # Fleet only: GitHub-hosted runners banned until Actions spending restored.
     # macos/windows entries were dropped from the matrix because they can only
     # run hosted and were permanently billing-red on every PR (zero signal).
     # Re-add when Actions billing is restored.
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     env:
       CI: "true"
       VCR_MODE: "playback"
@@ -1422,8 +1421,7 @@ jobs:
 
   release_evidence_gate:
     if: github.event_name == 'push'
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     env:
       CI: "true"
       RUST_BACKTRACE: "1"
@@ -1458,8 +1456,7 @@ jobs:
 
   qa_shards_linux:
     name: qa-shard (${{ matrix.shard.name }})
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -1718,8 +1715,7 @@ jobs:
 
   qa_shard_summary:
     name: qa-shard-summary
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     needs: qa_shards_linux
     if: always()
     steps:
@@ -2241,8 +2237,7 @@ jobs:
   # This job locks that contract in so it can never silently regress.
   library_no_default_features:
     name: lib (--no-default-features, no TUI)
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     env:
       CI: "true"
       RUST_BACKTRACE: "1"

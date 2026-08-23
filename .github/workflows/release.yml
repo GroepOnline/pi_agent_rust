@@ -20,8 +20,7 @@ permissions:
 
 jobs:
   plan:
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -57,8 +56,7 @@ jobs:
   gate:
     name: Release gate
     needs: plan
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: pi_agent_rust
@@ -104,8 +102,7 @@ jobs:
   installer_regression:
     name: Installer regression
     needs: plan
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
       run:
@@ -317,8 +314,7 @@ jobs:
     name: Create GitHub Release
     needs: [plan, installer_regression, build]
     if: always() && needs.plan.result == 'success' && needs.installer_regression.result == 'success' && needs.build.result == 'success' && !cancelled()
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout (for install script + changelog)

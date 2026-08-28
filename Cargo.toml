@@ -251,7 +251,7 @@ swc_ecma_parser = "34.0.0"
 swc_ecma_transforms_base = "37.0.0"
 swc_ecma_transforms_typescript = "41.0.0"
 swc_ecma_visit = "20.0.0"
-wasmtime = { version = "41.0.3", features = ["component-model"], optional = true }
+wasmtime = { version = "43.0.2", features = ["component-model"], optional = true }
 
 # Image processing (optional)
 image = { version = "0.25", optional = true }

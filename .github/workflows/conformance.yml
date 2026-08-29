@@ -248,12 +248,8 @@ jobs:
           PI_CONFORMANCE_RETRY_DELAY: "10"
         run: |
           set -euxo pipefail
-          if [[ "${PI_CONFORMANCE_MAX_RETRIES}" -gt 0 ]]; then
-            bash scripts/ci_conformance_retry.sh "${{ matrix.name }}" \
-              ${{ matrix.test_cmd }} 2>&1 | tee "conformance-${{ matrix.name }}.log"
-          else
+          bash scripts/ci_conformance_retry.sh "${{ matrix.name }}" \
             ${{ matrix.test_cmd }} 2>&1 | tee "conformance-${{ matrix.name }}.log"
-          fi
 
       - name: Upload conformance logs
         if: always() && env.SHOULD_RUN == 'true'

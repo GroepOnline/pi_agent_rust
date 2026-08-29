@@ -100,6 +100,7 @@ jobs:
     # dispatch -> profile input. This cannot live in jobs.<job_id>.if because
     # GitHub evaluates job if conditions before matrix expansion.
     env:
+      PI_CONFORMANCE_CARGO_RUNNER: auto
       SHOULD_RUN: ${{ (github.event_name == 'pull_request' && contains(matrix.if_event, 'pull_request')) || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *' && contains(matrix.if_event, 'nightly')) || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 6' && contains(matrix.if_event, 'weekly')) || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'auto' || (inputs.profile == 'fast' && contains(matrix.if_event, 'pull_request')) || (inputs.profile == 'full' && contains(matrix.if_event, 'nightly')) || (inputs.profile == 'weekly' && contains(matrix.if_event, 'weekly')))) }}
 
     name: "conformance (${{ matrix.name }})"
@@ -107,6 +108,7 @@ jobs:
     steps:
       - name: Skip unmatched profile
         if: env.SHOULD_RUN != 'true'
+        working-directory: .
         run: echo "Skipping ${{ matrix.name }} for event/profile selection"
 
       - name: Free disk space

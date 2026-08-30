@@ -50,7 +50,13 @@ RESULT_RE = re.compile(
 
 # Matches running line like:
 #   Running tests/json_mode_parity.rs (target/debug/deps/json_mode_parity-abc123)
-RUNNING_RE = re.compile(r"Running (?:tests/)?(\S+?)(?:\.rs)?\s")
+RUNNING_RE = re.compile(r"Running\s+(?:tests/)?(\S+)\s")
+ANSI_ESCAPE_RE = re.compile(r"(?:\x1b\[|\^\[\[)[0-9;?]*[ -/]*[@-~]")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove terminal styling emitted by cargo when CI preserves color."""
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 def parse_log(log_text: str) -> dict:
@@ -58,12 +64,16 @@ def parse_log(log_text: str) -> dict:
     suites = {}
     current_suite = None
 
-    for line in log_text.splitlines():
+    for raw_line in log_text.splitlines():
+        line = strip_ansi(raw_line)
         running_match = RUNNING_RE.search(line)
         if running_match:
             raw = running_match.group(1)
-            # Normalize: strip path prefixes, extract stem
+            # Normalize: strip path prefixes and source extension. Cargo's
+            # colored output may style `Running` independently from the path.
             stem = raw.rsplit("/", 1)[-1]
+            if stem.endswith(".rs"):
+                stem = stem[:-3]
             # cargo test output may include the hash suffix
             stem = stem.split("-")[0] if "-" in stem else stem
             if stem in PARITY_SUITES:
@@ -416,6 +426,21 @@ def run_self_test() -> int:
     project_root = project_root_from_script()
     all_pass_suites = parse_log(synthetic_parity_log())
     require(set(all_pass_suites) == set(PARITY_SUITES), "parser missed parity suites")
+    colored_log = synthetic_parity_log().replace(
+        "Running ", "\x1b[1m\x1b[92m     Running\x1b[0m "
+    ).replace(
+        "test result:", "\x1b[1mtest result:\x1b[0m"
+    )
+    colored_suites = parse_log(colored_log)
+    require(
+        set(colored_suites) == set(PARITY_SUITES),
+        "parser missed ANSI-colored cargo suite headers",
+    )
+    caret_colored_suites = parse_log(colored_log.replace("\x1b[", "^[["))
+    require(
+        set(caret_colored_suites) == set(PARITY_SUITES),
+        "parser missed caret-rendered ANSI cargo suite headers",
+    )
     require(
         all(suite["status"] == "pass" for suite in all_pass_suites.values()),
         "all-pass synthetic log should parse as pass",

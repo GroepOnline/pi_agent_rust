@@ -62,9 +62,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PI_MONO_ROOT = path.resolve(__dirname, "../../../legacy_pi_mono_code/pi-mono");
 
-const loaderPath = process.env.PI_TS_ORACLE_LOADER
-	? path.resolve(process.env.PI_TS_ORACLE_LOADER)
-	: path.join(PI_MONO_ROOT, "packages/coding-agent/dist/core/extensions/loader.js");
+const loaderPath = path.join(PI_MONO_ROOT, "packages/coding-agent/dist/core/extensions/loader.js");
 
 const originalConsole = {
 	log: console.log.bind(console),

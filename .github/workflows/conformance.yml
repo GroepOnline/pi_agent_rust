@@ -217,19 +217,6 @@ jobs:
         working-directory: pi_agent_rust/legacy_pi_mono_code/pi-mono
         run: npm ci
 
-      - name: Install published pi-mono coding-agent oracle
-        if: env.SHOULD_RUN == 'true'
-        working-directory: pi_agent_rust/legacy_pi_mono_code/pi-mono
-        run: |
-          set -euo pipefail
-          oracle_root="$RUNNER_TEMP/pi-coding-agent-oracle"
-          version="$(node -p "require('./packages/coding-agent/package.json').version")"
-          npm install --prefix "$oracle_root" --ignore-scripts --no-audit --no-fund --no-save \
-            "@mariozechner/pi-coding-agent@$version"
-          loader="$oracle_root/node_modules/@mariozechner/pi-coding-agent/dist/core/extensions/loader.js"
-          test -s "$loader"
-          echo "PI_TS_ORACLE_LOADER=$loader" >> "$GITHUB_ENV"
-
       - name: Symlink bun for conformance tests
         if: env.SHOULD_RUN == 'true' && runner.environment == 'github-hosted'
         run: |

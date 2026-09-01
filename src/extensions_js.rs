@@ -11144,7 +11144,11 @@ const __pi_vfs = (() => {
         ? globalThis.process.cwd()
         : "/"
     );
-    if (normalized === workspace || normalized.startsWith(`${workspace}/`)) {
+    if (
+      workspace === "/" ||
+      normalized === workspace ||
+      normalized.startsWith(`${workspace}/`)
+    ) {
       return normalized;
     }
     return `${root}${normalized.slice("/tmp".length)}`;

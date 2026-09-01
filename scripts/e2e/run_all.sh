@@ -826,6 +826,28 @@ RESULTJSON
 
 # ─── Build First ──────────────────────────────────────────────────────────────
 
+# Resolve Cargo required-features for an integration test target so generic
+# shard compilation and execution use the same feature contract as Cargo.toml.
+unit_target_cargo_feature_args() {
+    local target="$1"
+    python3 - "$target" <<'PY_CARGO_FEATURES'
+import sys
+import tomllib
+from pathlib import Path
+
+target = sys.argv[1]
+manifest = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))
+for test in manifest.get("test", []):
+    if test.get("name") != target:
+        continue
+    features = test.get("required-features", [])
+    if features:
+        print("--features")
+        print(",".join(features))
+    break
+PY_CARGO_FEATURES
+}
+
 build_tests() {
     echo "[build] Compiling selected verification targets..."
     local build_log="$ARTIFACT_DIR/build.log"
@@ -837,7 +859,9 @@ build_tests() {
             continue
         fi
         echo "[build]   unit:$target"
-        if ! run_cargo test --test "$target" --no-run 2>>"$build_log"; then
+        local -a target_feature_args=()
+        mapfile -t target_feature_args < <(unit_target_cargo_feature_args "$target")
+        if ! run_cargo test --test "$target" "${target_feature_args[@]}" --no-run 2>>"$build_log"; then
             echo "[build]   unit:$target FAILED" >&2
             build_ok=false
         fi
@@ -890,9 +914,13 @@ run_unit_target() {
     export TEST_ARTIFACT_INDEX_PATH="$artifact_index_env_path"
     export RUST_LOG="$LOG_LEVEL"
 
+    local -a target_feature_args=()
+    mapfile -t target_feature_args < <(unit_target_cargo_feature_args "$target")
+
     set +e
     run_cargo test \
         --test "$target" \
+        "${target_feature_args[@]}" \
         -- \
         --test-threads="$PARALLELISM" \
         2>&1 | tee "$log_file"

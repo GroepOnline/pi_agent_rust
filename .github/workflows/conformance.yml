@@ -33,8 +33,7 @@ jobs:
   # ─── Shared setup (reusable via needs) ────────────────────────────────────
 
   conformance-matrix:
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: pi_agent_rust
@@ -128,13 +127,13 @@ jobs:
 
       - name: Checkout pi_agent_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
       - name: Checkout asupersync
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/asupersync
           path: asupersync
@@ -142,7 +141,7 @@ jobs:
 
       - name: Checkout rich_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/rich_rust
           path: rich_rust
@@ -150,7 +149,7 @@ jobs:
 
       - name: Checkout charmed_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/charmed_rust
           path: charmed_rust
@@ -158,7 +157,7 @@ jobs:
 
       - name: Checkout sqlmodel_rust
         if: env.SHOULD_RUN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/sqlmodel_rust
           path: sqlmodel_rust
@@ -195,7 +194,7 @@ jobs:
 
       - name: Cargo cache
         if: env.SHOULD_RUN == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -221,14 +220,23 @@ jobs:
         run: |
           set -euxo pipefail
           sudo mkdir -p /home/ubuntu/.bun/bin
-          sudo ln -sf "$(command -v bun)" /home/ubuntu/.bun/bin/bun
+          # Persistent runners may already resolve bun through this symlink;
+          # `ln -sf X X` errors with "are the same file". Only link when needed.
+          target="$(command -v bun)"
+          if [ "$(readlink -f "$target")" != "$(readlink -f /home/ubuntu/.bun/bin/bun)" ]; then
+            sudo ln -sf "$target" /home/ubuntu/.bun/bin/bun
+          fi
 
       - name: Symlink bun for conformance tests [self-hosted]
         if: env.SHOULD_RUN == 'true' && runner.environment != 'github-hosted'
         run: |
           set -euxo pipefail
           mkdir -p "$HOME/.bun/bin"
-          ln -sf "$(command -v bun)" "$HOME/.bun/bin/bun"
+          # Same guard as the github-hosted variant: skip when already linked.
+          target="$(command -v bun)"
+          if [ "$(readlink -f "$target")" != "$(readlink -f "$HOME/.bun/bin/bun")" ]; then
+            ln -sf "$target" "$HOME/.bun/bin/bun"
+          fi
 
       - name: "Run: ${{ matrix.name }}"
         if: env.SHOULD_RUN == 'true'
@@ -247,7 +255,7 @@ jobs:
 
       - name: Upload conformance logs
         if: always() && env.SHOULD_RUN == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-${{ matrix.name }}-${{ github.sha }}
           path: |
@@ -263,14 +271,13 @@ jobs:
     needs: [conformance-matrix]
     if: >-
       github.event_name == 'schedule' && github.event.schedule == '0 2 * * *'
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download conformance artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: conformance-full-report-*
           merge-multiple: true
@@ -296,7 +303,7 @@ jobs:
         run: python3 scripts/conformance_trend.py
 
       - name: Upload trend report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-trend-${{ github.sha }}
           path: |

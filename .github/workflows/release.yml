@@ -20,8 +20,7 @@ permissions:
 
 jobs:
   plan:
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -57,15 +56,14 @@ jobs:
   gate:
     name: Release gate
     needs: plan
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: pi_agent_rust
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
@@ -96,7 +94,7 @@ jobs:
 
       - name: Upload release gate report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-gate-report
           path: pi_agent_rust/release_gate_report.json
@@ -104,8 +102,7 @@ jobs:
   installer_regression:
     name: Installer regression
     needs: plan
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
       run:
@@ -113,7 +110,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
@@ -158,13 +155,13 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
           ref: ${{ needs.plan.outputs.tag }}
           # DO NOT add `submodules: false` here (YAML boolean).
-          # actions/checkout@v4 treats the YAML boolean false as "recursive",
+          # actions/checkout@v7 treats the YAML boolean false as "recursive",
           # which then fails because legacy_pi_mono_code/pi-mono has no
           # .gitmodules entry. Omitting the key entirely gives the correct
           # default (string "false" = don't checkout submodules).
@@ -188,28 +185,28 @@ jobs:
           fi
 
       - name: Checkout asupersync
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/asupersync
           path: asupersync
           fetch-depth: 1
 
       - name: Checkout rich_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/rich_rust
           path: rich_rust
           fetch-depth: 1
 
       - name: Checkout charmed_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/charmed_rust
           path: charmed_rust
           fetch-depth: 1
 
       - name: Checkout sqlmodel_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Dicklesworthstone/sqlmodel_rust
           path: sqlmodel_rust
@@ -308,7 +305,7 @@ jobs:
           EOF
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}
           path: pi_agent_rust/dist/*
@@ -317,19 +314,18 @@ jobs:
     name: Create GitHub Release
     needs: [plan, installer_regression, build]
     if: always() && needs.plan.result == 'success' && needs.installer_regression.result == 'success' && needs.build.result == 'success' && !cancelled()
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout (for install script + changelog)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
           fetch-depth: 0
           ref: ${{ needs.plan.outputs.tag }}
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

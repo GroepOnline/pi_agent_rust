@@ -26,12 +26,11 @@ env:
 jobs:
   refresh:
     name: refresh scheduled evidence
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install system deps
         run: |
@@ -46,7 +45,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cargo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -105,7 +104,7 @@ jobs:
 
       - name: Upload refresh logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: weekly-evidence-refresh-${{ github.run_id }}-${{ github.run_attempt }}
           path: |

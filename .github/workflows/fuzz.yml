@@ -42,7 +42,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
         (inputs.profile == 'quick' || inputs.profile == 'all'))
     # Quick fuzz never occupies the only heavy listener.
-    runs-on: [self-hosted, Linux, X64, company-control, pr-isolated]
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -68,7 +68,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
@@ -83,7 +83,7 @@ jobs:
           tool: cargo-fuzz
 
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload quick fuzz reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-quick-${{ matrix.target }}-${{ github.run_id }}
           path: |
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload crash artifacts (quick)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-crash-quick-${{ matrix.target }}-${{ github.run_id }}
           path: pi_agent_rust/fuzz/artifacts/${{ matrix.target }}/
@@ -175,9 +175,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       (inputs.profile == 'nightly' || inputs.profile == 'all')
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
     # Dispatch-only: never occupy the company-control heavy lane on a cron.
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -194,7 +193,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
@@ -209,7 +208,7 @@ jobs:
           tool: cargo-fuzz
 
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -222,7 +221,7 @@ jobs:
             fuzz-nightly-${{ runner.os }}-
 
       - name: Restore nightly corpus cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: pi_agent_rust/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
@@ -286,7 +285,7 @@ jobs:
 
       - name: Upload nightly fuzz reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-nightly-${{ matrix.target }}-${{ github.run_id }}
           path: |
@@ -297,7 +296,7 @@ jobs:
 
       - name: Upload crash artifacts (nightly)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-crash-nightly-${{ matrix.target }}-${{ github.run_id }}
           path: pi_agent_rust/fuzz/artifacts/${{ matrix.target }}/
@@ -306,7 +305,7 @@ jobs:
 
       - name: Upload corpus snapshot (nightly)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           path: pi_agent_rust/fuzz/corpus/${{ matrix.target }}/
@@ -318,8 +317,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       (inputs.profile == 'nightly' || inputs.profile == 'all')
-    # GitHub-hosted runners banned until Actions spending restored (fleet only).
-    runs-on: ${{ github.event_name == 'pull_request' && fromJSON('["self-hosted","Linux","X64","pr-isolated"]') || fromJSON('["self-hosted","Linux","X64","heavy"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
       run:
@@ -330,7 +328,7 @@ jobs:
       FUZZ_COVERAGE_SECONDS: "120"
     steps:
       - name: Checkout pi_agent_rust
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: pi_agent_rust
 
@@ -346,7 +344,7 @@ jobs:
           tool: cargo-fuzz
 
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -478,7 +476,7 @@ jobs:
 
       - name: Upload fuzz coverage dashboard artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-coverage-dashboard-${{ env.FUZZ_TARGET }}-${{ github.run_id }}
           path: |

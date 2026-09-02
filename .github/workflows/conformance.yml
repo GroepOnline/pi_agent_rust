@@ -100,6 +100,7 @@ jobs:
     # dispatch -> profile input. This cannot live in jobs.<job_id>.if because
     # GitHub evaluates job if conditions before matrix expansion.
     env:
+      PI_CONFORMANCE_CARGO_RUNNER: auto
       SHOULD_RUN: ${{ (github.event_name == 'pull_request' && contains(matrix.if_event, 'pull_request')) || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *' && contains(matrix.if_event, 'nightly')) || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 6' && contains(matrix.if_event, 'weekly')) || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'auto' || (inputs.profile == 'fast' && contains(matrix.if_event, 'pull_request')) || (inputs.profile == 'full' && contains(matrix.if_event, 'nightly')) || (inputs.profile == 'weekly' && contains(matrix.if_event, 'weekly')))) }}
 
     name: "conformance (${{ matrix.name }})"
@@ -107,6 +108,7 @@ jobs:
     steps:
       - name: Skip unmatched profile
         if: env.SHOULD_RUN != 'true'
+        working-directory: .
         run: echo "Skipping ${{ matrix.name }} for event/profile selection"
 
       - name: Free disk space
@@ -215,6 +217,19 @@ jobs:
         working-directory: pi_agent_rust/legacy_pi_mono_code/pi-mono
         run: npm ci
 
+      - name: Install published pi-mono coding-agent oracle
+        if: env.SHOULD_RUN == 'true'
+        working-directory: pi_agent_rust/legacy_pi_mono_code/pi-mono
+        run: |
+          set -euo pipefail
+          oracle_root="$RUNNER_TEMP/pi-coding-agent-oracle"
+          version="$(node -p "require('./packages/coding-agent/package.json').version")"
+          npm install --prefix "$oracle_root" --ignore-scripts --no-audit --no-fund --no-save \
+            "@mariozechner/pi-coding-agent@$version"
+          loader="$oracle_root/node_modules/@mariozechner/pi-coding-agent/dist/core/extensions/loader.js"
+          test -s "$loader"
+          echo "PI_TS_ORACLE_LOADER=$loader" >> "$GITHUB_ENV"
+
       - name: Symlink bun for conformance tests
         if: env.SHOULD_RUN == 'true' && runner.environment == 'github-hosted'
         run: |
@@ -246,12 +261,8 @@ jobs:
           PI_CONFORMANCE_RETRY_DELAY: "10"
         run: |
           set -euxo pipefail
-          if [[ "${PI_CONFORMANCE_MAX_RETRIES}" -gt 0 ]]; then
-            bash scripts/ci_conformance_retry.sh "${{ matrix.name }}" \
-              ${{ matrix.test_cmd }} 2>&1 | tee "conformance-${{ matrix.name }}.log"
-          else
+          bash scripts/ci_conformance_retry.sh "${{ matrix.name }}" \
             ${{ matrix.test_cmd }} 2>&1 | tee "conformance-${{ matrix.name }}.log"
-          fi
 
       - name: Upload conformance logs
         if: always() && env.SHOULD_RUN == 'true'

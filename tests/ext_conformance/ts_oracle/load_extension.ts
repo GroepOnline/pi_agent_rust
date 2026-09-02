@@ -18,7 +18,9 @@ const PI_MONO_ROOT = path.resolve(__dirname, "../../../legacy_pi_mono_code/pi-mo
 
 // Import directly from the built loader to avoid pulling in the full package
 // (which transitively requires AWS/Smithy/etc)
-const loaderPath = path.join(PI_MONO_ROOT, "packages/coding-agent/dist/core/extensions/loader.js");
+const loaderPath = process.env.PI_TS_ORACLE_LOADER
+	? path.resolve(process.env.PI_TS_ORACLE_LOADER)
+	: path.join(PI_MONO_ROOT, "packages/coding-agent/dist/core/extensions/loader.js");
 const { loadExtensions } = await import(loaderPath);
 
 function applyDeterministicGlobals() {

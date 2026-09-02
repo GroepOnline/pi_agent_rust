@@ -4540,6 +4540,7 @@ if isinstance(summary, dict):
         remediation="Update write_summary() schema to pi.e2e.summary.v1.",
     )
     summary_correlation_id = str(summary.get("correlation_id", "")).strip()
+    run_id = str(summary.get("timestamp", "")).strip()
     require_condition(
         "summary.correlation_id_nonempty",
         path=summary_path,

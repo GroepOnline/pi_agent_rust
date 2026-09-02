@@ -232,6 +232,11 @@ fn evidence_contract_schema_enforced_in_runner() {
         "run_all.sh must generate failure diagnostics"
     );
 
+    assert!(
+        content.contains("run_id = str(summary.get(\"timestamp\", \"\")).strip()"),
+        "evidence validator must bind run_id from summary timestamp before claim reports use it"
+    );
+
     eprintln!("[OK] Evidence contract schema enforced in runner");
 }
 
